@@ -102,6 +102,7 @@ typedef enum {
 	RTC_CODEC_H264 = 0,
 	RTC_CODEC_VP8 = 1,
 	RTC_CODEC_VP9 = 2,
+	RTC_CODEC_AV1 = 3,
 
 	// audio
 	RTC_CODEC_OPUS = 128,
@@ -324,6 +325,9 @@ RTC_C_EXPORT int rtcSetH264PacketizationHandler(int tr, const rtcPacketizationHa
 
 // Set OpusPacketizationHandler for track
 RTC_C_EXPORT int rtcSetOpusPacketizationHandler(int tr, const rtcPacketizationHandlerInit *init);
+
+// Set AV1PacketizationHandler for track
+RTC_C_EXPORT int rtcSetAV1PacketizationHandler(int tr, const rtcPacketizationHandlerInit *init);
 
 // Chain RtcpSrReporter to handler chain for given track
 RTC_C_EXPORT int rtcChainRtcpSrReporter(int tr);

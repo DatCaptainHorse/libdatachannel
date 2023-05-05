@@ -17,3 +17,6 @@
 	path = deps/libsrtp
 	url = https://github.com/cisco/libsrtp.git
 	shallow = true
+[submodule "deps/obuparse"]
+	path = deps/obuparse
+	url = https://github.com/dwbuiten/obuparse.git

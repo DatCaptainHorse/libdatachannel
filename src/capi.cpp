@@ -1007,6 +1007,7 @@ int rtcAddTrackEx(int pc, const rtcTrackInit *init) {
 			case RTC_CODEC_H264:
 			case RTC_CODEC_VP8:
 			case RTC_CODEC_VP9:
+			case RTC_CODEC_AV1:
 				mid = "video";
 				break;
 			case RTC_CODEC_OPUS:
@@ -1025,7 +1026,8 @@ int rtcAddTrackEx(int pc, const rtcTrackInit *init) {
 		switch (init->codec) {
 		case RTC_CODEC_H264:
 		case RTC_CODEC_VP8:
-		case RTC_CODEC_VP9: {
+		case RTC_CODEC_VP9:
+		case RTC_CODEC_AV1: {
 			auto desc = Description::Video(mid, direction);
 			switch (init->codec) {
 			case RTC_CODEC_H264:
@@ -1036,6 +1038,9 @@ int rtcAddTrackEx(int pc, const rtcTrackInit *init) {
 				break;
 			case RTC_CODEC_VP9:
 				desc.addVP9Codec(init->payloadType);
+				break;
+			case RTC_CODEC_AV1:
+				desc.addAV1Codec(init->payloadType);
 				break;
 			default:
 				break;
@@ -1209,6 +1214,23 @@ int rtcSetOpusPacketizationHandler(int tr, const rtcPacketizationHandlerInit *in
 		emplaceRtpConfig(rtpConfig, tr);
 		// set handler
 		track->setMediaHandler(opusHandler);
+		return RTC_ERR_SUCCESS;
+	});
+}
+
+int rtcSetAV1PacketizationHandler(int tr, const rtcPacketizationHandlerInit *init) {
+	return wrap([&] {
+		auto track = getTrack(tr);
+		// create RTP configuration
+		auto rtpConfig = createRtpPacketizationConfig(init);
+		// create packetizer
+		auto packetizer = std::make_shared<AV1RtpPacketizer>(rtpConfig);
+		// create AV1 handler
+		auto av1Handler = std::make_shared<AV1PacketizationHandler>(packetizer);
+		emplaceMediaChainableHandler(av1Handler, tr);
+		emplaceRtpConfig(rtpConfig, tr);
+		// set handler
+		track->setMediaHandler(av1Handler);
 		return RTC_ERR_SUCCESS;
 	});
 }
