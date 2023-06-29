@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2020 Filip Klembara (in2core)
+ * Copyright (c) 2023 Kristian Ollikainen (DatCaptainHorse)
  *
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -22,59 +22,30 @@ extern "C" {
 
 namespace rtc {
 
-class OBU {
-public:
-	enum class Fragmentation { None, Start, Middle, End };
-
-public:
-	OBU(binary_ptr data, int temporal_id, int spatial_id, Fragmentation fragmentation)
-	    : data(data), temporal_id(temporal_id), spatial_id(spatial_id),
-	      fragmentation(fragmentation) {}
-
+struct OBU {
+	OBPOBUType type;
 	binary_ptr data;
-	int temporal_id;
-	int spatial_id;
+	bool endFragment;
 
-	Fragmentation fragmentation;
-};
-
-class OBUs : public std::vector<std::shared_ptr<OBU>> {};
-
-struct AV1RtpPacketizerState {
-	OBPSequenceHeader seqHeader;
-	bool seenSeqHeader = false;
-	int seenFrameHeader = 0;
-	OBPState state;
-	size_t remainingMTU;
-	int last_temporal_id = -1;
-	bool temporal_id_changed = false;
-	std::queue<binary_ptr> packetsToDeliver;
+	OBU(OBPOBUType type, binary_ptr data, bool endFragment)
+	    : type(type), data(data), endFragment(endFragment) {}
 };
 
 /// RTP packetization of AV1 payload
 class RTC_CPP_EXPORT AV1RtpPacketizer final : public RtpPacketizer, public MediaHandlerRootElement {
-	OBUs splitMessage(binary_ptr message);
-	const uint16_t maximumFragmentSize;
-	std::shared_ptr<AV1RtpPacketizerState> packetizerState;
-
-	bool first_packet = true;
-
-	static const uint16_t defaultMaximumFragmentSize =
-	    uint16_t(RTC_DEFAULT_MTU - 12 - 1 - 8 - 40); // SRTP/AV1AggrHdr/UDP/IPv6
-
 public:
 	/// Default clock rate for AV1 in RTP
 	inline static const uint32_t defaultClockRate = 90 * 1000;
+	inline static const uint16_t defaultMaximumFragmentSize =
+	    uint16_t(RTC_DEFAULT_MTU - 12 - 8 - 40); // SRTP/UDP/IPv6
+
+	std::vector<OBU> splitMessage(binary_ptr message);
 
 	/// Constructs AV1 payload packetizer with given RTP configuration.
 	/// @note RTP configuration is used in packetization process which may change some configuration
 	/// properties such as sequence number.
 	/// @param rtpConfig  RTP configuration
-	/// @param maximumFragmentSize maximum size of one OBU fragment
-	AV1RtpPacketizer(shared_ptr<RtpPacketizationConfig> rtpConfig,
-	                 uint16_t maximumFragmentSize = defaultMaximumFragmentSize);
-
-	std::vector<binary_ptr> createPackets(const OBUs &obus);
+	AV1RtpPacketizer(shared_ptr<RtpPacketizationConfig> rtpConfig);
 
 	ChainedOutgoingProduct processOutgoingBinaryMessage(ChainedMessagesProduct messages,
 	                                                    message_ptr control) override;

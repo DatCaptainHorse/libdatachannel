@@ -76,6 +76,8 @@ set(LIBDATACHANNEL_SOURCES
 	${CMAKE_CURRENT_SOURCE_DIR}/src/rtppacketizer.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/opusrtppacketizer.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/opuspacketizationhandler.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/av1rtppacketizer.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/av1packetizationhandler.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/h264rtppacketizer.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/nalunit.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/h264packetizationhandler.cpp
@@ -111,6 +113,8 @@ set(LIBDATACHANNEL_HEADERS
 	${CMAKE_CURRENT_SOURCE_DIR}/include/rtc/rtppacketizer.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/rtc/opusrtppacketizer.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/rtc/opuspacketizationhandler.hpp
+	${CMAKE_CURRENT_SOURCE_DIR}/include/rtc/av1rtppacketizer.hpp
+	${CMAKE_CURRENT_SOURCE_DIR}/include/rtc/av1packetizationhandler.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/rtc/h264rtppacketizer.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/rtc/nalunit.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/rtc/h264packetizationhandler.hpp
@@ -254,6 +258,14 @@ else()
 	add_library(Usrsctp::Usrsctp ALIAS usrsctp)
 endif()
 
+# obuparse
+add_library(obuparse STATIC
+	deps/obuparse/obuparse.c
+	deps/obuparse/obuparse.h)
+
+target_include_directories(obuparse PUBLIC
+	deps/obuparse)
+
 add_library(datachannel SHARED
 	${LIBDATACHANNEL_SOURCES}
 	${LIBDATACHANNEL_HEADERS}
@@ -283,7 +295,7 @@ target_include_directories(datachannel PUBLIC
 target_include_directories(datachannel PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include/rtc)
 target_include_directories(datachannel PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(datachannel PRIVATE Threads::Threads)
-target_link_libraries(datachannel PRIVATE Usrsctp::Usrsctp plog::plog)
+target_link_libraries(datachannel PRIVATE Usrsctp::Usrsctp plog::plog obuparse)
 
 target_include_directories(datachannel-static PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -291,7 +303,7 @@ target_include_directories(datachannel-static PUBLIC
 target_include_directories(datachannel-static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include/rtc)
 target_include_directories(datachannel-static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(datachannel-static PRIVATE Threads::Threads)
-target_link_libraries(datachannel-static PRIVATE Usrsctp::Usrsctp plog::plog)
+target_link_libraries(datachannel-static PRIVATE Usrsctp::Usrsctp plog::plog obuparse)
 
 if(WIN32)
 	target_link_libraries(datachannel PUBLIC ws2_32) # winsock2
