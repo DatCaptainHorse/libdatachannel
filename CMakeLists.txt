@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.7)
 project(libdatachannel
 	VERSION 0.18.3
-	LANGUAGES C CXX)
+	LANGUAGES CXX)
 set(PROJECT_DESCRIPTION "C/C++ WebRTC network library featuring Data Channels, Media Transport, and WebSockets")
 
 # Options
@@ -34,11 +34,15 @@ else()
 
 	if(NOT USE_SYSTEM_SRTP)
 		if (USE_MBEDTLS)
-			option(ENABLE_MBEDTLS "Enable Mbed TLS crypto engine for SRTP" ON)
+			option(ENABLE_MBEDTLS "Enable Mbed TLS crypto engine for libSRTP" ON)
 		else()
-			option(ENABLE_OPENSSL "Enable OpenSSL crypto engine for SRTP" ON)
+			option(ENABLE_OPENSSL "Enable OpenSSL crypto engine for libSRTP" ON)
 		endif()
 	endif()
+endif()
+
+if(NOT WARNINGS_AS_ERRORS AND NOT USE_SYSTEM_SRTP)
+	option(BUILD_WITH_WARNINGS "Add warning as error flags for libSRTP" OFF)
 endif()
 
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/Modules)
@@ -75,8 +79,6 @@ set(LIBDATACHANNEL_SOURCES
 	${CMAKE_CURRENT_SOURCE_DIR}/src/h264rtppacketizer.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/nalunit.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/h264packetizationhandler.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/av1rtppacketizer.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/av1packetizationhandler.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/mediachainablehandler.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/mediahandlerelement.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/mediahandlerrootelement.cpp
@@ -112,8 +114,6 @@ set(LIBDATACHANNEL_HEADERS
 	${CMAKE_CURRENT_SOURCE_DIR}/include/rtc/h264rtppacketizer.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/rtc/nalunit.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/rtc/h264packetizationhandler.hpp
-	${CMAKE_CURRENT_SOURCE_DIR}/include/rtc/av1rtppacketizer.hpp
-	${CMAKE_CURRENT_SOURCE_DIR}/include/rtc/av1packetizationhandler.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/rtc/mediachainablehandler.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/rtc/mediahandlerelement.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/rtc/mediahandlerrootelement.hpp
@@ -140,6 +140,7 @@ set(LIBDATACHANNEL_IMPL_SOURCES
 	${CMAKE_CURRENT_SOURCE_DIR}/src/impl/sha.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/impl/pollinterrupter.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/impl/pollservice.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/impl/http.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/impl/httpproxytransport.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/impl/tcpserver.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/impl/tcptransport.cpp
@@ -173,6 +174,7 @@ set(LIBDATACHANNEL_IMPL_HEADERS
 	${CMAKE_CURRENT_SOURCE_DIR}/src/impl/sha.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/impl/pollinterrupter.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/impl/pollservice.hpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/impl/http.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/impl/httpproxytransport.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/impl/tcpserver.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/impl/tcptransport.hpp
@@ -234,11 +236,6 @@ if(SCTP_DEBUG)
 	add_definitions(-DSCTP_DEBUG)
 endif()
 
-set(OBUPARSE_SOURCES
-	${CMAKE_SOURCE_DIR}/deps/obuparse/obuparse.c
-	${CMAKE_SOURCE_DIR}/deps/obuparse/obuparse.h
-)
-
 if(USE_SYSTEM_USRSCTP)
 	find_package(Usrsctp REQUIRED)
 else()
@@ -258,7 +255,6 @@ else()
 endif()
 
 add_library(datachannel SHARED
-	${OBUPARSE_SOURCES}
 	${LIBDATACHANNEL_SOURCES}
 	${LIBDATACHANNEL_HEADERS}
 	${LIBDATACHANNEL_IMPL_SOURCES}
@@ -271,7 +267,6 @@ set_target_properties(datachannel PROPERTIES
 target_compile_definitions(datachannel PRIVATE RTC_EXPORTS)
 
 add_library(datachannel-static STATIC EXCLUDE_FROM_ALL
-	${OBUPARSE_SOURCES}
 	${LIBDATACHANNEL_SOURCES}
 	${LIBDATACHANNEL_HEADERS}
 	${LIBDATACHANNEL_IMPL_SOURCES}
@@ -287,7 +282,6 @@ target_include_directories(datachannel PUBLIC
     $<INSTALL_INTERFACE:include>)
 target_include_directories(datachannel PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include/rtc)
 target_include_directories(datachannel PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
-target_include_directories(datachannel PRIVATE ${CMAKE_SOURCE_DIR}/deps/obuparse)
 target_link_libraries(datachannel PRIVATE Threads::Threads)
 target_link_libraries(datachannel PRIVATE Usrsctp::Usrsctp plog::plog)
 
@@ -296,8 +290,7 @@ target_include_directories(datachannel-static PUBLIC
     $<INSTALL_INTERFACE:include>)
 target_include_directories(datachannel-static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include/rtc)
 target_include_directories(datachannel-static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
-target_include_directories(datachannel-static PRIVATE ${CMAKE_SOURCE_DIR}/deps/obuparse)
-target_link_libraries(datachannel-static PRIVATE Threads::Threads obuparse)
+target_link_libraries(datachannel-static PRIVATE Threads::Threads)
 target_link_libraries(datachannel-static PRIVATE Usrsctp::Usrsctp plog::plog)
 
 if(WIN32)

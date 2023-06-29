@@ -65,14 +65,15 @@ protected:
 	static ssize_t WriteCallback(gnutls_transport_ptr_t ptr, const void *data, size_t len);
 	static ssize_t ReadCallback(gnutls_transport_ptr_t ptr, void *data, size_t maxlen);
 	static int TimeoutCallback(gnutls_transport_ptr_t ptr, unsigned int ms);
-#elif USE_MBEDTLS
-	std::mutex mSendMutex;
-	std::atomic<bool> mOutgoingResult = true;
 
+#elif USE_MBEDTLS
 	mbedtls_entropy_context mEntropy;
 	mbedtls_ctr_drbg_context mDrbg;
 	mbedtls_ssl_config mConf;
 	mbedtls_ssl_context mSsl;
+
+	std::mutex mSslMutex;
+	std::atomic<bool> mOutgoingResult = true;
 
 	message_ptr mIncomingMessage;
 	size_t mIncomingMessagePosition = 0;
@@ -84,20 +85,13 @@ protected:
 	SSL_CTX *mCtx;
 	SSL *mSsl;
 	BIO *mInBio, *mOutBio;
+	std::mutex mSslMutex;
 
 	bool flushOutput();
 
-	static BIO_METHOD *BioMethods;
 	static int TransportExIndex;
-	static std::mutex GlobalMutex;
 
-	static int CertificateCallback(int preverify_ok, X509_STORE_CTX *ctx);
 	static void InfoCallback(const SSL *ssl, int where, int ret);
-
-	static int BioMethodNew(BIO *bio);
-	static int BioMethodFree(BIO *bio);
-	static int BioMethodWrite(BIO *bio, const char *in, int inl);
-	static long BioMethodCtrl(BIO *bio, int cmd, long num, void *ptr);
 #endif
 };
 

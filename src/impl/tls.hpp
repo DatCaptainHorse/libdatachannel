@@ -52,7 +52,7 @@ gnutls_datum_t make_datum(char *data, size_t size);
 
 namespace rtc::mbedtls {
 
-void check(int ret, const string &message = "MbedTLS error");
+bool check(int ret, const string &message = "MbedTLS error");
 
 string format_time(const std::chrono::system_clock::time_point &tp);
 
@@ -82,10 +82,10 @@ std::shared_ptr<mbedtls_x509_crt> new_x509_crt();
 namespace rtc::openssl {
 
 void init();
-string error_string(unsigned long err);
+string error_string(unsigned long error);
 
 bool check(int success, const string &message = "OpenSSL error");
-bool check(SSL *ssl, int ret, const string &message = "OpenSSL error");
+bool check_error(int err, const string &message = "OpenSSL error");
 
 BIO *BIO_new_from_file(const string &filename);
 

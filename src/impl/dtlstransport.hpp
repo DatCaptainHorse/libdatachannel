@@ -19,7 +19,6 @@
 #include <functional>
 #include <memory>
 #include <mutex>
-#include <thread>
 
 namespace rtc::impl {
 
@@ -72,12 +71,12 @@ protected:
 	static int TimeoutCallback(gnutls_transport_ptr_t ptr, unsigned int ms);
 
 #elif USE_MBEDTLS
-	std::mutex mMutex;
-
 	mbedtls_entropy_context mEntropy;
 	mbedtls_ctr_drbg_context mDrbg;
 	mbedtls_ssl_config mConf;
 	mbedtls_ssl_context mSsl;
+
+	std::mutex mSslMutex;
 
 	uint32_t mFinMs = 0, mIntMs = 0;
 	std::chrono::time_point<std::chrono::steady_clock> mTimerSetAt;
@@ -86,6 +85,7 @@ protected:
 	char mRandBytes[64];
 	mbedtls_tls_prf_types mTlsProfile = MBEDTLS_SSL_TLS_PRF_NONE;
 
+	static int CertificateCallback(void *ctx, mbedtls_x509_crt *crt, int depth, uint32_t *flags);
 	static int WriteCallback(void *ctx, const unsigned char *buf, size_t len);
 	static int ReadCallback(void *ctx, unsigned char *buf, size_t len);
 	static void ExportKeysCallback(void *ctx, mbedtls_ssl_key_export_type type,
@@ -100,6 +100,7 @@ protected:
 	SSL_CTX *mCtx = NULL;
 	SSL *mSsl = NULL;
 	BIO *mInBio, *mOutBio;
+	std::mutex mSslMutex;
 
 	void handleTimeout();
 

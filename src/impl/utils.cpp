@@ -18,6 +18,18 @@
 #include <sstream>
 #include <thread>
 
+#if defined(_WIN32)
+#include <Windows.h>
+
+typedef HRESULT(WINAPI *pfnSetThreadDescription)(HANDLE, PCWSTR);
+#endif
+#if defined(__linux__)
+#include <sys/prctl.h> // for prctl(PR_SET_NAME)
+#endif
+#if defined(__FreeBSD__)
+#include <pthread_np.h> // for pthread_set_name_np
+#endif
+
 namespace rtc::impl::utils {
 
 using std::to_integer;
@@ -128,43 +140,44 @@ std::seed_seq random_seed() {
 	return std::seed_seq(seed.begin(), seed.end());
 }
 
-size_t parseHttpLines(const byte *buffer, size_t size, std::list<string> &lines) {
-	lines.clear();
-	auto begin = reinterpret_cast<const char *>(buffer);
-	auto end = begin + size;
-	auto cur = begin;
-	while (true) {
-		auto last = cur;
-		cur = std::find(cur, end, '\n');
-		if (cur == end)
-			return 0;
-		string line(last, cur != begin && *std::prev(cur) == '\r' ? std::prev(cur++) : cur++);
-		if (line.empty())
-			break;
-		lines.emplace_back(std::move(line));
-	}
+namespace {
 
-	return cur - begin;
-}
+void thread_set_name_self(const char *name) {
+#if defined(_WIN32)
+	int name_length = (int)strlen(name);
+	int wname_length =
+	    MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, name, name_length, nullptr, 0);
+	if (wname_length > 0) {
+		std::wstring wname(wname_length, L'\0');
+		wname_length = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, name, name_length,
+		                                   &wname[0], wname_length + 1);
 
-std::multimap<string, string> parseHttpHeaders(const std::list<string> &lines) {
-	std::multimap<string, string> headers;
-	for (const auto &line : lines) {
-		if (size_t pos = line.find_first_of(':'); pos != string::npos) {
-			string key = line.substr(0, pos);
-			string value = "";
-			if (size_t subPos = line.find_first_not_of(' ', pos + 1); subPos != string::npos) {
-				value = line.substr(subPos);
+		HMODULE kernel32 = GetModuleHandleW(L"kernel32.dll");
+		if (kernel32 != nullptr) {
+			auto pSetThreadDescription =
+			    (pfnSetThreadDescription)GetProcAddress(kernel32, "SetThreadDescription");
+			if (pSetThreadDescription != nullptr) {
+				pSetThreadDescription(GetCurrentThread(), wname.c_str());
 			}
-			std::transform(key.begin(), key.end(), key.begin(),
-			               [](char c) { return std::tolower(c); });
-			headers.emplace(std::move(key), std::move(value));
-		} else {
-			headers.emplace(line, "");
 		}
 	}
-
-	return headers;
+#elif defined(__linux__)
+	prctl(PR_SET_NAME, name);
+#elif defined(__APPLE__)
+	pthread_setname_np(name);
+#elif defined(__FreeBSD__)
+	pthread_set_name_np(pthread_self(), name);
+#else
+	(void)name;
+#endif
 }
+
+} // namespace
+
+namespace this_thread {
+
+void set_name(const string &name) { thread_set_name_self(name.c_str()); }
+
+} // namespace this_thread
 
 } // namespace rtc::impl::utils
